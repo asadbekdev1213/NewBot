@@ -20,7 +20,7 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 RENDER_URL = os.environ["RENDER_EXTERNAL_URL"]
 
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL = "gemini-3.8-flash"
+MODEL = "gemini-3.5-flash-lite"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
