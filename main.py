@@ -1,6 +1,8 @@
 
 import os
 import asyncio
+import logging
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -11,12 +13,11 @@ from telegram.ext import (
 )
 from google import genai
 
-# API keys from hosting environment
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+logging.basicConfig(level=logging.INFO)
 
-if not BOT_TOKEN or not GEMINI_API_KEY:
-    raise RuntimeError("API keys are missing!")
+BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+RENDER_URL = os.environ["RENDER_EXTERNAL_URL"]
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 MODEL = "gemini-3.8-flash"
@@ -24,8 +25,7 @@ MODEL = "gemini-3.8-flash"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Hello! I'm Cleveron AI 🤖\n"
-        "Ask me anything!"
+        "Hello! I'm Cleveron AI 🤖\nAsk me anything!"
     )
 
 
@@ -44,26 +44,36 @@ async def handle_message(
 
         answer = response.text or "I couldn't generate an answer."
 
-        # Telegram message length limit
         for i in range(0, len(answer), 4000):
             await update.message.reply_text(answer[i:i + 4000])
 
     except Exception:
+        logging.exception("Gemini request failed")
         await update.message.reply_text(
             "Sorry, something went wrong. Please try again."
         )
 
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            handle_message
+        )
     )
 
-    print("Cleveron AI is running!")
-    app.run_polling()
+    print("Cleveron AI is starting...")
+
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", "10000")),
+        url_path=BOT_TOKEN,
+        webhook_url=f"{RENDER_URL}/{BOT_TOKEN}",
+        allowed_updates=Update.ALL_TYPES,
+    )
 
 
 if __name__ == "__main__":
